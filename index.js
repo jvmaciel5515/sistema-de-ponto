@@ -1,4 +1,4 @@
-// index.js (Versão Final Completa)
+// index.js (Versão Final para Deploy no Fly.io)
 
 // --- DEPENDÊNCIAS ---
 const express = require('express');
@@ -10,7 +10,6 @@ const Papa = require('papaparse');
 
 // --- CONFIGURAÇÃO INICIAL ---
 const app = express();
-const port = 3000;
 const saltRounds = 10;
 
 // --- SESSÃO ---
@@ -21,11 +20,12 @@ app.use(session({
     cookie: { maxAge: 86400000 } // 24 horas
 }));
 
-// --- BANCO DE DADOS ---
+// --- BANCO DE DADOS (AJUSTADO PARA FLY.IO) ---
 let db;
 try {
-    db = new Database('./ponto.db');
-    console.log('Conectado ao banco de dados com better-sqlite3.');
+    // Aponta para o disco persistente montado em /data
+    db = new Database('/data/ponto.db');
+    console.log('Conectado ao banco de dados com better-sqlite3 em /data/ponto.db');
 } catch (err) {
     console.error('### FALHA CRÍTICA AO CONECTAR NO BANCO DE DADOS ###', err);
     process.exit(1);
@@ -64,7 +64,7 @@ const adminOnlyMiddleware = (req, res, next) => { (req.session.user && req.sessi
 // --- ROTAS DE PÁGINA ---
 app.get('/', (req, res) => { req.session && req.session.user ? res.redirect('/ponto.html') : res.redirect('/login.html'); });
 
-// --- ROTAS DE API ---
+// --- ROTAS DE API (sem alterações na lógica) ---
 
 // Rotas de Autenticação
 app.post('/api/login', (req, res) => {
@@ -146,12 +146,8 @@ app.get('/api/admin/relatorio/mensal', authMiddleware, adminOnlyMiddleware, (req
         registros.forEach(registro => {
             const data = new Date(registro.timestamp);
             dadosParaCsv.push({ "Data": data.toLocaleDateString('pt-BR'), "Hora": data.toLocaleTimeString('pt-BR'), "Tipo": registro.tipo });
-            if (registro.tipo === 'entrada') {
-                if (!ultimaEntrada) ultimaEntrada = data;
-            } else if (registro.tipo === 'saida' && ultimaEntrada) {
-                totalMilissegundos += data - ultimaEntrada;
-                ultimaEntrada = null;
-            }
+            if (registro.tipo === 'entrada') { if (!ultimaEntrada) ultimaEntrada = data; }
+            else if (registro.tipo === 'saida' && ultimaEntrada) { totalMilissegundos += data - ultimaEntrada; ultimaEntrada = null; }
         });
         const horas = Math.floor(totalMilissegundos / 3600000);
         const minutos = Math.floor((totalMilissegundos % 3600000) / 60000);
@@ -182,7 +178,7 @@ app.get('/api/relatorio/hoje', authMiddleware, (req, res) => {
     let ultimaEntrada = null;
     registrosDoDia.forEach(registro => {
         if (registro.tipo === 'entrada') { if (!ultimaEntrada) ultimaEntrada = new Date(registro.timestamp); }
-        else if (registro.tipo === 'saida' && ultimaEntrada) { totalMilissegundos += new Date(registro.timestamp) - ultimaEntrada; ultimaEntrada = null; }
+        else if (registro.tipo === 'saida' && ultimaEntrada) { totalMilissegulos += new Date(registro.timestamp) - ultimaEntrada; ultimaEntrada = null; }
     });
     if (ultimaEntrada) { totalMilissegundos += new Date() - ultimaEntrada; }
     const horas = Math.floor(totalMilissegundos / 3600000);
@@ -190,5 +186,10 @@ app.get('/api/relatorio/hoje', authMiddleware, (req, res) => {
     res.json({ formatado: `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}` });
 });
 
-// --- INICIAR SERVIDOR ---
-app.listen(port, () => { console.log(`Servidor rodando. Acesse http://localhost:${port}`); });
+// --- INICIAR SERVIDOR (AJUSTADO PARA FLY.IO) ---
+const HOST = '0.0.0.0';
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, HOST, () => {
+    console.log(`Servidor rodando em http://${HOST}:${PORT}`);
+});
