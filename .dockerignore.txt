@@ -1,0 +1,3 @@
+node_modules
+ponto.db
+.env
