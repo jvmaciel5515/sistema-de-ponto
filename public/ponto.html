@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Ponto</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 2rem auto; color: #333; background-color: #f8f9fa; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 1rem; }
+        h1, h2, h3 { color: #343a40; }
+        #logout-btn { background: #dc3545; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+        #logout-btn:hover { background-color: #c82333; }
+        .main { margin-top: 2rem; text-align: center; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        #ponto-btn { font-size: 1.5rem; padding: 1rem 2rem; cursor: pointer; border-radius: 8px; border: none; color: white; font-weight: bold; transition: background-color 0.2s; }
+        .entrada { background-color: #28a745; }
+        .entrada:hover { background-color: #218838; }
+        .saida { background-color: #ffc107; color: #333 !important; }
+        .saida:hover { background-color: #e0a800; }
+        .relatorio { margin-top: 2rem; font-size: 1.2rem; }
+        .historico { margin-top: 2rem; text-align: left; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        ul { list-style-type: none; padding: 0; }
+        li { background-color: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; margin-bottom: 5px; display: flex; justify-content: space-between; border-radius: 4px; }
+        li .tipo-entrada { color: #28a745; font-weight: bold; }
+        li .tipo-saida { color: #ffc107; font-weight: bold; }
+        #admin-panel { display: none; margin-top: 3rem; padding: 2rem; border: 2px dashed #007bff; border-radius: 8px; background: white; }
+        .form { display: flex; flex-direction: column; }
+        input, select { padding: 0.8rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
+        .form button { background-color: #007bff; color: white; padding: 0.8rem; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+        .form button:hover { background-color: #0056b3; }
+        .message { text-align: center; margin-top: 1rem; font-weight: bold; min-height: 20px; }
+        .error { color: red; }
+        .success { color: green; }
+        #user-list-container { margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; }
+        .user-item { padding: 1rem; align-items: center; }
+        .user-details { flex-grow: 1; }
+        .user-actions button { margin-left: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.8rem; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-delete { background-color: #dc3545; }
+        .btn-password { background-color: #6c757d; }
+        hr { border: 0; border-top: 1px solid #eee; }
+        #pendencias-container { margin-bottom: 2rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
+        .pendencia-item { background-color: #fffbe6; border-left: 4px solid #ffc107; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h2 id="welcome-message">Carregando...</h2>
+        <button id="logout-btn">Sair</button>
+    </header>
+
+    <main class="main">
+        <button id="ponto-btn">Carregando...</button>
+        <div class="relatorio">
+            <h3>Horas Trabalhadas Hoje</h3>
+            <p id="horas-hoje" style="font-size: 2rem; font-weight: bold; color: #007bff;">--:--</p>
+        </div>
+    </main>
+
+    <section class="historico">
+        <h3>Histórico de Registros</h3>
+        <ul id="listaRegistros"></ul>
+    </section>
+
+    <section id="admin-panel">
+        <h2>Painel do Administrador</h2>
+        <div id="pendencias-container">
+            <h3><span style="color: #ffc107;">⚠️</span> Pendências de Ponto</h3>
+            <p style="font-size: 0.9em; color: #666;">Abaixo estão os dias em que um bolsista esqueceu de registrar a saída. Use o formulário de "Ajuste Manual" para corrigir.</p>
+            <ul id="pendencias-list"></ul>
+        </div>
+        <hr>
+        <form id="export-form" class="form">
+            <h3>Exportar Relatório Mensal</h3>
+            <label for="export-usuario">Selecionar Bolsista:</label>
+            <select id="export-usuario" required></select>
+            <label for="export-mes">Mês:</label>
+            <select id="export-mes" required></select>
+            <label for="export-ano">Ano:</label>
+            <input type="number" id="export-ano" required placeholder="Ex: 2025">
+            <button type="submit">Exportar para CSV</button>
+        </form>
+        <hr>
+        <form id="ajuste-ponto-form" class="form">
+            <h3>Ajuste Manual de Ponto</h3>
+            <label for="ajuste-usuario">Selecionar Bolsista:</label>
+            <select id="ajuste-usuario" required></select>
+            <label for="ajuste-datahora">Data e Hora do Registro:</label>
+            <input type="datetime-local" id="ajuste-datahora" required>
+            <label for="ajuste-tipo">Tipo de Registro:</label>
+            <select id="ajuste-tipo" required><option value="entrada">Entrada</option><option value="saida">Saída</option></select>
+            <button type="submit">Adicionar Registro</button>
+            <div id="ajuste-message-area" class="message"></div>
+        </form>
+        <hr>
+        <form id="create-bolsista-form" class="form">
+            <h3>Criar Novo Bolsista</h3>
+            <input type="text" id="bolsista-name" placeholder="Nome Completo" required>
+            <input type="email" id="bolsista-email" placeholder="Email" required>
+            <input type="password" id="bolsista-password" placeholder="Senha Provisória" required>
+            <button type="submit">Criar Bolsista</button>
+            <div id="admin-message-area" class="message"></div>
+        </form>
+        <div id="user-list-container">
+            <h3>Gerenciar Bolsistas</h3>
+            <ul id="user-list"></ul>
+        </div>
+    </section>
+
+    <script>
+        // Seletores de Elementos Globais
+        const welcomeMessage = document.getElementById('welcome-message');
+        const pontoBtn = document.getElementById('ponto-btn');
+        const horasHojeEl = document.getElementById('horas-hoje');
+        const listaRegistrosEl = document.getElementById('listaRegistros');
+        const logoutBtn = document.getElementById('logout-btn');
+        const adminPanel = document.getElementById('admin-panel');
+        const userList = document.getElementById('user-list');
+        const pendenciasList = document.getElementById('pendencias-list');
+
+        // Função para atualizar o botão de ponto (Entrada/Saída)
+        function atualizarBotao(ultimoTipo) {
+            if (ultimoTipo === 'saida') {
+                pontoBtn.textContent = 'Registrar Entrada';
+                pontoBtn.className = 'entrada';
+            } else {
+                pontoBtn.textContent = 'Registrar Saída';
+                pontoBtn.className = 'saida';
+            }
+        }
+
+        // Carrega todas as informações da página
+        async function carregarTudo() {
+            try {
+                const statusResponse = await fetch('/api/status');
+                if (!statusResponse.ok) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+                const statusData = await statusResponse.json();
+                welcomeMessage.textContent = `Bem-vindo, ${statusData.usuario.nome}!`;
+
+                // Lógica que só roda se o usuário for ADMIN
+                if (statusData.usuario.cargo === 'admin') {
+                    adminPanel.style.display = 'block';
+                    inicializarPainelAdmin(); // Chama a função que configura tudo do admin
+                }
+                
+                atualizarBotao(statusData.ultimoTipo);
+
+                const relatorioResponse = await fetch('/api/relatorio/hoje');
+                const relatorioData = await relatorioResponse.json();
+                horasHojeEl.textContent = relatorioData.formatado;
+
+                const registrosResponse = await fetch('/api/registros');
+                const registrosData = await registrosResponse.json();
+                listaRegistrosEl.innerHTML = '';
+                registrosData.forEach(r => {
+                    const item = document.createElement('li');
+                    const data = new Date(r.timestamp).toLocaleString('pt-BR');
+                    const tipoClasse = r.tipo === 'entrada' ? 'tipo-entrada' : 'tipo-saida';
+                    item.innerHTML = `<span class="${tipoClasse}">${r.tipo.toUpperCase()}</span> <span>${data}</span>`;
+                    listaRegistrosEl.appendChild(item);
+                });
+            } catch (error) {
+                console.error("Erro ao carregar dados da página:", error);
+                welcomeMessage.textContent = 'Erro de conexão.';
+            }
+        }
+
+        // --- FUNÇÕES DE ADMINISTRAÇÃO ---
+        async function inicializarPainelAdmin() {
+            // Seletores de elementos do painel de admin
+            const createBolsistaForm = document.getElementById('create-bolsista-form');
+            const adminMessageArea = document.getElementById('admin-message-area');
+            const ajustePontoForm = document.getElementById('ajuste-ponto-form');
+            const ajusteUsuarioSelect = document.getElementById('ajuste-usuario');
+            const ajusteMessageArea = document.getElementById('ajuste-message-area');
+            const exportForm = document.getElementById('export-form');
+            const exportUsuarioSelect = document.getElementById('export-usuario');
+            const exportMesSelect = document.getElementById('export-mes');
+            const exportAnoInput = document.getElementById('export-ano');
+
+            // Carrega e exibe a lista de usuários nos selects e na lista de gerenciamento
+            async function popularSelectUsuarios() {
+                const response = await fetch('/api/admin/usuarios');
+                const usuarios = await response.json();
+                
+                // Limpa os selects e a lista
+                ajusteUsuarioSelect.innerHTML = '<option value="">-- Selecione --</option>';
+                exportUsuarioSelect.innerHTML = '<option value="">-- Selecione --</option>';
+                userList.innerHTML = '';
+                if (usuarios.length === 0) userList.innerHTML = '<li>Nenhum bolsista cadastrado.</li>';
+                
+                usuarios.forEach(user => {
+                    // Adiciona na lista de gerenciamento
+                    const item = document.createElement('li');
+                    item.className = 'user-item';
+                    item.innerHTML = `<div class="user-details"><strong>${user.nome}</strong><br><small>${user.email}</small></div><div class="user-actions"><button class="btn-password" data-id="${user.id}" data-nome="${user.nome}">Alterar Senha</button><button class="btn-delete" data-id="${user.id}" data-nome="${user.nome}">Excluir</button></div>`;
+                    userList.appendChild(item);
+
+                    // Adiciona nos selects
+                    const optionAjuste = document.createElement('option');
+                    optionAjuste.value = user.id;
+                    optionAjuste.textContent = user.nome;
+                    ajusteUsuarioSelect.appendChild(optionAjuste);
+
+                    const optionExport = document.createElement('option');
+                    optionExport.value = user.id;
+                    optionExport.textContent = user.nome;
+                    exportUsuarioSelect.appendChild(optionExport);
+                });
+            }
+
+            // Carrega e exibe as pendências
+            async function carregarPendenciasAdmin() {
+                const response = await fetch('/api/admin/pendencias');
+                const pendencias = await response.json();
+                pendenciasList.innerHTML = '';
+                if (pendencias.length === 0) {
+                    pendenciasList.innerHTML = '<li>Nenhuma pendência encontrada. ✅</li>';
+                    return;
+                }
+                pendencias.forEach(p => {
+                    const item = document.createElement('li');
+                    item.className = 'pendencia-item';
+                    const dataFormatada = new Date(p.dia + 'T12:00:00Z').toLocaleDateString('pt-BR');
+                    item.innerHTML = `<strong>${p.nome}</strong> tem uma saída pendente no dia <strong>${dataFormatada}</strong>.`;
+                    pendenciasList.appendChild(item);
+                });
+            }
+
+            // Configura o formulário de exportação
+            const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            meses.forEach((mes, index) => {
+                const option = document.createElement('option');
+                option.value = index + 1;
+                option.textContent = mes;
+                exportMesSelect.appendChild(option);
+            });
+            const dataAtual = new Date();
+            exportMesSelect.value = dataAtual.getMonth() + 1;
+            exportAnoInput.value = dataAtual.getFullYear();
+
+            exportForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const idUsuario = exportUsuarioSelect.value;
+                const mes = exportMesSelect.value;
+                const ano = exportAnoInput.value;
+                if (!idUsuario) return alert("Por favor, selecione um bolsista.");
+                window.location.href = `/api/admin/relatorio/mensal?idUsuario=${idUsuario}&mes=${mes}&ano=${ano}`;
+            });
+            
+            // Configura o formulário de criar bolsista
+            createBolsistaForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const response = await fetch('/api/admin/criar-bolsista', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome: e.target['bolsista-name'].value, email: e.target['bolsista-email'].value, senha: e.target['bolsista-password'].value })
+                });
+                const data = await response.json();
+                adminMessageArea.textContent = data.mensagem || data.erro;
+                adminMessageArea.className = response.ok ? 'message success' : 'message error';
+                if (response.ok) {
+                    createBolsistaForm.reset();
+                    popularSelectUsuarios();
+                }
+                setTimeout(() => { adminMessageArea.textContent = ''; }, 3000);
+            });
+            
+            // Configura o formulário de ajuste manual
+            ajustePontoForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const response = await fetch('/api/admin/ajustar-ponto', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idUsuario: e.target['ajuste-usuario'].value, dataHora: e.target['ajuste-datahora'].value, tipo: e.target['ajuste-tipo'].value })
+                });
+                const data = await response.json();
+                ajusteMessageArea.textContent = data.mensagem || data.erro;
+                ajusteMessageArea.className = response.ok ? 'message success' : 'message error';
+                if (response.ok) {
+                    ajustePontoForm.reset();
+                    carregarPendenciasAdmin();
+                }
+                setTimeout(() => { ajusteMessageArea.textContent = ''; }, 3000);
+            });
+
+            // Carrega os dados iniciais do admin
+            popularSelectUsuarios();
+            carregarPendenciasAdmin();
+        }
+
+        // Eventos da lista de gerenciamento de usuários
+        userList.addEventListener('click', async (e) => {
+            const target = e.target;
+            const userId = target.dataset.id;
+            const userName = target.dataset.nome;
+            if (target.classList.contains('btn-delete')) {
+                if (confirm(`Tem certeza que deseja excluir o bolsista "${userName}"?`)) {
+                    const response = await fetch(`/api/admin/usuario/${userId}`, { method: 'DELETE' });
+                    const data = await response.json();
+                    alert(data.mensagem || data.erro);
+                    carregarTudo();
+                }
+            }
+            if (target.classList.contains('btn-password')) {
+                const novaSenha = prompt(`Digite a NOVA senha para "${userName}":`);
+                if (novaSenha && novaSenha.trim() !== '') {
+                    const response = await fetch('/api/admin/usuario/senha', {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: userId, novaSenha: novaSenha })
+                    });
+                    const data = await response.json();
+                    alert(data.mensagem || data.erro);
+                } else if (novaSenha !== null) {
+                    alert('A senha não pode ser vazia.');
+                }
+            }
+        });
+
+        // Eventos principais da página
+        pontoBtn.addEventListener('click', async () => { await fetch('/api/ponto', { method: 'POST' }); carregarTudo(); });
+        logoutBtn.addEventListener('click', async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login.html'; });
+
+        // Inicia a aplicação ao carregar a página
+        document.addEventListener('DOMContentLoaded', carregarTudo);
+    </script>
+</body>
+</html>
